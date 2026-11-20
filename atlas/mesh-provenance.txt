@@ -1,0 +1,21 @@
+X-RAY MIRROR PRO • cranial mesh provenance and file format
+
+Title: High quality skull.stl
+Creator: Dr. Mariano Coretti
+Source: https://commons.wikimedia.org/wiki/File:High_quality_skull.stl
+Original STL: https://upload.wikimedia.org/wikipedia/commons/d/d8/High_quality_skull.stl
+Original STL SHA-256: c1267322f6ab5f8733e7ed287a8cf6f7a7b681793ff21251226f465207df51a2
+License of original and adapted mesh files: CC BY-SA 4.0,
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Adaptations: VTK connected-component separation into upper cranium,
+mandible, upper dentition and lower dentition. Right-handed orientation
+(x, z, -y) and uniform scaling, then VTK quadric decimation with volume
+preservation and vertex normal computation. These are adapted educational
+reference meshes, not measurements of the person viewing the app.
+
+Format (.xrm; little-endian): uint32 vertex count then uint32 index
+count. Next, six float32 values per vertex: position x, y, z followed
+by normal x, y, z. Last, zero-based uint32 triangle indices (three per
+triangle). Four files total: skull.xrm (83,640 triangles), mandible.xrm
+(13,278), teeth.xrm (12,462), lower-teeth.xrm (13,578).
