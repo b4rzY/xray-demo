@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="description" content="Explore a 3D anatomy atlas or conduct five elemental effects with your hands and face, in one private camera session.">
   <title>X-RAY MIRROR PRO · Barzy Labs</title>
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=split-1">
 </head>
 <body>
   <header class="masthead">
@@ -51,6 +51,15 @@
           <canvas id="atlas" aria-label="Three-dimensional anatomy model"></canvas>
           <canvas id="field" aria-hidden="true" hidden></canvas>
           <div class="view-label"><h2 id="anatomy-name">Cranial skeleton</h2><span class="view-kicker" id="kicker">Camera-off atlas</span></div>
+          <button id="reveal-toggle" class="small-button reveal-toggle" type="button" aria-pressed="false" aria-controls="reveal-controls">
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M12 4.5v15M7 8h1m-1 4h1m-1 4h1"/></svg>Split view
+          </button>
+          <div id="reveal-controls" hidden>
+            <span id="reveal-left" class="split-tag" aria-hidden="true">Atlas model</span><span id="reveal-right" class="split-tag" aria-hidden="true">Camera off</span>
+            <span class="split-divider" aria-hidden="true"></span>
+            <input type="range" id="reveal-range" min="5" max="95" value="50" step="1" aria-label="Anatomy split position" aria-valuetext="50% anatomy view">
+            <span class="split-handle" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path d="m10 8-4 4 4 4m4-8 4 4-4 4"/></svg></span>
+          </div>
           <div class="viewport-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
           <div id="atlas-tools" class="viewport-controls">
             <button id="zoom-out" class="small-button icon-button" type="button" aria-label="Zoom out" title="Zoom out"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14" stroke="currentColor" stroke-width="1.5"/></svg></button>
@@ -114,12 +123,12 @@
     <details class="about"><summary>About the studio &amp; credits</summary>
       <p>The mirror fits a reference skull to visible facial landmarks. It cannot see through skin, measure your bones, or identify a medical condition. The hand overlay illustrates finger positions, not the shape of your bones.</p>
       <p>Elemental mode reacts to a palm, fist, pinch, paired palms or open mouth. Demo gestures use synthetic inputs. Camera mode downloads Google's tracking runtime and models. Inference runs in your browser; this app does not record or upload camera frames. Stop the camera at any time. The camera also stops when you leave the tab.</p>
-      <p>Use the arrow keys in the viewport to orbit, + or − to zoom, and Home to reset. The section control removes outer anatomy progressively. In live mode, hold a thumb–index pinch and move it sideways to adjust the section.</p>
+      <p>Split view lets you drag a divider between the simulated anatomy and your camera. Without the camera it previews the divider against the reference atlas. Use the arrow keys in the viewport to orbit, + or − to zoom, and Home to reset. The section control removes outer anatomy progressively. In live mode, hold a thumb–index pinch and move it sideways to adjust the section.</p>
       <p><a href="./credits.html">Geometry, software and license notices</a></p>
     </details>
     <noscript><p>Enable JavaScript to use the atlas and gesture studio. The reference skull is visible without it.</p></noscript>
   </main>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=split-1"></script>
 </body>
 </html>

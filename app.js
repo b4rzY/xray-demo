@@ -1,22 +1,32 @@
-import {createRenderer} from './render.js';
+import {createRenderer} from './render.js?v=split-1';
 import {createTracker} from './tracking.js';
 import {paintHands} from './hand-overlay.js';
 import {effects,readElements,demoSource,paintElements} from './elements.js';
 const $=id=>document.getElementById(id), clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const set=(id,text)=>{const el=$(id);if(el&&el.textContent!==String(text))el.textContent=text};
 const cv=$('atlas'),vp=$('viewport'),vid=$('feed');
-const hand=document.createElement('canvas');hand.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2';hand.setAttribute('aria-hidden','true');vp.insertBefore(hand,cv.nextSibling);const hc=hand.getContext('2d');
+const hand=document.createElement('canvas');hand.id='atlas-hands';hand.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2';hand.setAttribute('aria-hidden','true');vp.insertBefore(hand,cv.nextSibling);const hc=hand.getContext('2d');
 const home={yaw:-.31,pitch:.015,roll:0,center:[.5,.5],scale:1,zoom:1,jaw:0};
 let s={...home,layers:{bone:true,brain:false,muscle:false},opacity:1,cut:0,live:false};
 let phase='off',face=null,hands=[],pinch=null,motion=false,renderer,dirty=true,raf=0,prev=0,frameTimes=[],renderError='',fitScale=1,fitOffset=0,handState=null;
 const reduced=matchMedia('(prefers-reduced-motion:reduce)');
 const fc=$('field').getContext('2d');
 let studio='atlas',chosen='plasma',demoPos=null,playField=false,fieldClock=2300,fieldPrev=0,effectSources=[],lastMessage='';
+let splitOn=false,splitValue=50;
 const isField=()=>studio==='field';
+const splitActive=()=>splitOn&&!isField();
+function updateSplit(){
+  vp.dataset.split=String(splitActive());vp.style.setProperty('--split',splitValue+'%');
+  $('reveal-toggle').hidden=isField();$('reveal-toggle').setAttribute('aria-pressed',String(splitActive()));
+  $('reveal-controls').hidden=!splitActive();
+  $('reveal-range').setAttribute('aria-valuetext',splitValue+'% anatomy view');
+  set('reveal-left',phase==='live'?'Anatomy':'Atlas model');set('reveal-right',phase==='live'?'Camera':'Camera off');
+}
 const activity=()=>isField()&&(phase==='live'?effectSources.length>0:playField&&phase!=='loading')&&!reduced.matches;
 const sourceLabel=()=>effectSources.length?effectSources.map(s=>effects[s.type].name).join(' + '):'Awaiting gesture';
 function studioUI(){
   const f=isField(),live=phase==='live',loading=phase==='loading';
+  updateSplit();
   vp.dataset.studio=studio;document.documentElement?.setAttribute('data-studio',studio);
   document.documentElement?.setAttribute('data-session',phase);
   $('atlas-mode').setAttribute('aria-pressed',String(!f));$('field-mode').setAttribute('aria-pressed',String(f));
@@ -34,16 +44,16 @@ function studioUI(){
   if(f)set('anatomy-name',live?sourceLabel():effects[chosen].name);
   else {const names={bone:'Cranial skeleton',brain:'Cerebral hemispheres',muscle:'Facial musculature'},on=Object.keys(s.layers).filter(l=>s.layers[l]);set('anatomy-name',on.length===1?names[on[0]]:on.length?'Composite anatomy':'No layers selected')}
   const instructions=f?(live?'Show a palm to bloom, pinch for silk, or open your mouth.':'Tap to place the effect · Arrow keys to move'):(live?'Face the camera. Pinch and move sideways to change the section.':'Drag to rotate · Scroll or pinch to zoom');
-  const shown=!f&&!renderer?'Static reference · Elemental remains available.':instructions;
+  const shown=splitActive()?'Drag the divider or use arrow keys on the slider.':!f&&!renderer?'Static reference · Elemental remains available.':instructions;
   set('instructions',shown);vp.setAttribute('aria-label',(f?'Interactive effects viewport. ':'Anatomy viewport. ')+shown);
   const status=phase==='error'||loading?lastMessage:!f&&renderError?renderError:live?(f?(handState===false?'Hand model unavailable or loading. Open your mouth for Stellar breath.':hands.length||face?'Tracking locally.':'Step into view. Show a hand or open your mouth.'):(face?'Face locked':'Looking for a face')+(handState===false?' · hands unavailable or loading':' · tracking locally')):(f?'Demo gestures · Camera is off':'Reference atlas · Camera is off');
   set('status',status);
 }
-function failRender(e){renderer=null;$('poster').hidden=false;for(const id of ['bone','brain','muscle','cut','opacity','reset','motion','zoom-in','zoom-out'])$(id).disabled=true;renderError='Showing a static reference. 3D rendering is unavailable. Enable camera to use Elemental, or enable WebGL and reload for the 3D atlas.';set('status',renderError);$('camera').disabled=false;cv.dataset.error='true';console.warn('Atlas unavailable:',e?.message)}
+function failRender(e){renderer?.destroy?.();renderer=null;$('poster').hidden=false;for(const id of ['bone','brain','muscle','cut','opacity','reset','motion','zoom-in','zoom-out'])$(id).disabled=true;renderError='Showing a static reference. 3D rendering is unavailable. Enable camera to use Elemental, or enable WebGL and reload for the 3D atlas.';set('status',renderError);$('camera').disabled=false;cv.dataset.error='true';console.warn('Atlas unavailable:',e?.message)}
 try{renderer=createRenderer(cv)}catch(e){failRender(e)}
 const maybeRender=()=>{dirty=true;if(!raf&&!document.hidden)raf=requestAnimationFrame(paint)};
 function paint(t){
-  raf=0;const active=phase==='live'||motion||activity();
+  raf=0;const continuous=motion||activity();
   const dt=prev?Math.min(80,t-prev):0;prev=t;
   if(motion&&phase!=='live')s.yaw+=dt*.00025;
   if(dirty||motion||activity()){
@@ -56,15 +66,17 @@ function paint(t){
     if(renderer&&!isField()){
       frameTimes.push(t);
       const anchor=phase==='live'&&face?{...face,scale:face.scale*fitScale,center:[face.center[0],face.center[1]+face.scale*.68*fitOffset]}:null;
-      const render={...s,...(anchor||{}),zoom:s.zoom,live:phase==='live',layers:phase==='live'&&!anchor?{bone:false,brain:false,muscle:false}:s.layers};
+      const render={...s,...(anchor||{}),zoom:s.zoom,live:phase==='live',split:splitActive()?splitValue/100:1,layers:phase==='live'&&!anchor?{bone:false,brain:false,muscle:false}:s.layers};
       try{renderer.draw(render)}catch(e){failRender(e)}
     }
     if(hc&&!isField())paintHands(hc,!isField()&&phase==='live'&&s.layers.bone?hands:[],vp.clientWidth,vp.clientHeight,Math.min(2,devicePixelRatio||1),s.opacity);
     set('angle',Math.round(((((phase==='live'&&face?face.yaw:s.yaw)*180/Math.PI+180)%360+360)%360)-180)+'°');
     dirty=false;
   }
-  if(active){while(frameTimes.length&&frameTimes[0]<t-1000)frameTimes.shift();if(t-(paint.last||0)>500){set('fps',frameTimes.length+' fps');paint.last=t}raf=requestAnimationFrame(paint)}
+  // Tracker pushes new frames; only actual animation should keep RAF alive.
+  if(continuous||phase==='live'){while(frameTimes.length&&frameTimes[0]<t-1000)frameTimes.shift();if(t-(paint.last||0)>500){set('fps',frameTimes.length+' fps');paint.last=t}}
   else{frameTimes=[];prev=0;set('fps','Idle')}
+  if(continuous)raf=requestAnimationFrame(paint);
 }
 function updateMotion(active){motion=active;const el=$('motion');el.setAttribute('aria-pressed',String(active));el.title=active?'Pause automatic rotation':'Start automatic rotation';set('motion',active?'Pause orbit':'Orbit');maybeRender()}
 function sync(){
@@ -99,7 +111,7 @@ function onFrame(f){
   set('hands',f.hands??hands.length);if(Number.isFinite(f.inferenceHz))set('tracking-rate',Math.round(f.inferenceHz)+' Hz');
   if(phase==='live'){
     const before=sourceLabel(),sawFace=vp.dataset.face,sawHands=vp.dataset.hands;
-    effectSources=readElements(hands,face,vp.clientWidth/Math.max(1,vp.clientHeight));
+    if(isField())effectSources=readElements(hands,face,vp.clientWidth/Math.max(1,vp.clientHeight));
     vp.dataset.face=String(!!face);vp.dataset.hands=String(!!hands.length);
     if(sourceLabel()!==before||vp.dataset.face!==sawFace||vp.dataset.hands!==sawHands)studioUI();
   }
@@ -108,6 +120,8 @@ function onFrame(f){
 const tracker=createTracker({video:vid,viewport:vp,onState,onFrame,fit:'adaptive'});
 $('camera').onclick=async()=>{if(!renderer&&!isField())changeStudio('field');try{await tracker.start()}catch(e){onState({phase:'error',message:e.message||'Camera could not start. Try again or use the atlas.'})}};
 $('stop').onclick=()=>tracker.stop();
+$('reveal-toggle').onclick=()=>{splitOn=!splitOn;studioUI();maybeRender()};
+$('reveal-range').oninput=e=>{splitValue=clamp(+e.target.value||50,5,95);updateSplit();maybeRender()};
 $('fit-size').oninput=e=>{fitScale=+e.target.value/100;set('fit-size-val',e.target.value+'%');maybeRender()};
 $('fit-height').oninput=e=>{fitOffset=+e.target.value/100;set('fit-height-val',e.target.value+'%');maybeRender()};
 for(const l of ['bone','brain','muscle'])$(l).onclick=()=>{s.layers[l]=!s.layers[l];if(l==='brain'&&s.layers.brain&&s.layers.bone&&s.cut===0)s.cut=.5;sync()};
@@ -120,7 +134,7 @@ if($('zoom-in'))$('zoom-in').onclick=()=>zoom(1.1);
 if($('zoom-out'))$('zoom-out').onclick=()=>zoom(1/1.1);
 function changeStudio(next){
   if(next===studio)return;
-  studio=next;if(next==='field'&&hc)paintHands(hc,[],vp.clientWidth,vp.clientHeight,1,1);pinch=null;fieldPrev=0;pointers.clear();fieldPointer=null;
+  studio=next;if(next==='field'&&phase==='live')effectSources=readElements(hands,face,vp.clientWidth/Math.max(1,vp.clientHeight));if(next==='field'&&hc)paintHands(hc,[],vp.clientWidth,vp.clientHeight,1,1);pinch=null;fieldPrev=0;pointers.clear();fieldPointer=null;
   updateMotion(false);studioUI();maybeRender();
 }
 $('atlas-mode').onclick=()=>changeStudio('atlas');$('field-mode').onclick=()=>changeStudio('field');
@@ -137,8 +151,8 @@ vp.addEventListener('pointermove',e=>{if(isField()){if(fieldPointer===e.pointerI
 for(const ev of ['pointerup','pointercancel','lostpointercapture'])vp.addEventListener(ev,e=>{if(fieldPointer===e.pointerId)fieldPointer=null;pointers.delete(e.pointerId);span=null});
 vp.addEventListener('wheel',e=>{if(isField()||phase==='live'||controlTarget(e.target))return;e.preventDefault();zoom(Math.exp(-clamp(e.deltaY,-200,200)*.0015))},{passive:false});
 vp.addEventListener('keydown',e=>{if(controlTarget(e.target)||phase==='live')return;const k=e.key;if(isField()){if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(k))return;e.preventDefault();if(k==='Home')demoPos=null;else{const v=demoSource(chosen,demoPos)[0];demoPos=[clamp(v.x+(k==='ArrowLeft'?-.04:k==='ArrowRight'?.04:0),.05,.95),clamp(v.y+(k==='ArrowUp'?-.04:k==='ArrowDown'?.04:0),.09,.91)]}maybeRender();return}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','+','=','-','Home'].includes(k))return;e.preventDefault();updateMotion(false);if(k==='Home')$('reset').click();else if(k==='+'||k==='=')zoom(1.1);else if(k==='-')zoom(1/1.1);else if(k==='ArrowLeft')s.yaw-=.1;else if(k==='ArrowRight')s.yaw+=.1;else s.pitch=clamp(s.pitch+(k==='ArrowUp'?-.08:.08),-1.1,1.1);maybeRender()});
-cv.addEventListener('atlasready',()=>{$('poster').hidden=true;maybeRender()});cv.addEventListener('atlaserror',e=>{set('status', e.detail?.message || 'One atlas layer could not load. Reload to retry.');maybeRender()});
-new ResizeObserver(maybeRender).observe(vp);cv.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!isField())tracker.stop();failRender(new Error('graphics context lost'));studioUI()});
+cv.addEventListener('atlasready',()=>{$('poster').hidden=true;maybeRender()});cv.addEventListener('atlaserror',e=>{failRender(new Error(e.detail?.message || 'One atlas layer could not load.'));if(phase==='live'&&!isField())changeStudio('field');studioUI();maybeRender()});
+new ResizeObserver(maybeRender).observe(vp);cv.addEventListener('webglcontextlost',e=>{e.preventDefault();failRender(new Error('graphics context lost'));if(phase==='live'&&!isField())changeStudio('field');studioUI()});
 cv.addEventListener('webglcontextrestored',()=>{try{renderer=createRenderer(cv);renderError='';for(const id of ['bone','brain','muscle','cut','opacity','reset','motion','zoom-in','zoom-out'])$(id).disabled=false;delete cv.dataset.error;$('camera').disabled=false;studioUI();sync()}catch(e){failRender(e)}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(phase==='live'||phase==='loading')tracker.stop();if(raf)cancelAnimationFrame(raf);raf=0;prev=0;frameTimes=[]}else maybeRender()});
 window.addEventListener('pagehide',()=>{tracker.stop();updateMotion(false)});

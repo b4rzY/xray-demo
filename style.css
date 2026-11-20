@@ -268,3 +268,22 @@ h1{font-size:clamp(2.5rem,4.1vw,4rem);line-height:1;letter-spacing:-.018em}
 @media(max-width:350px) and (orientation:portrait){
   .viewport[data-studio=field]:not([data-live=true]){height:clamp(275px,43svh,375px)}
 }
+
+/* Split viewer uses a native slider to preserve touch, keyboard and AT behavior. */
+.viewport{--split:50%}
+.reveal-toggle{position:absolute;z-index:5;top:17px;right:17px;min-height:44px;border-color:#786451;background:#262123;color:#f8e8d3;font-size:.85rem;font-weight:650}
+.reveal-toggle svg{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.reveal-toggle[aria-pressed=true]{color:#ffdcae;border-color:#daa30c;background:#3a2b22}
+.viewport[data-studio=atlas] .view-label{max-width:calc(100% - 144px)}
+.viewport[data-split=true] #atlas-hands,.viewport[data-split=true] #poster{clip-path:inset(0 calc(100% - var(--split)) 0 0)}
+#reveal-controls{position:absolute;inset:0;z-index:3;pointer-events:none}
+.split-divider{position:absolute;left:var(--split);top:0;bottom:0;width:1px;transform:translateX(-.5px);background:#ffdaa7;opacity:.88;box-shadow:0 1px 5px #16110f}
+.split-handle{position:absolute;top:56%;left:var(--split);width:44px;height:44px;transform:translate(-50%,-50%);border-radius:50%;display:grid;place-items:center;color:#ffddad;background:#282226;border:1px solid #ffd8a6;box-shadow:0 3px 12px #0a080a9f;pointer-events:none}
+.split-handle svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#reveal-range{pointer-events:auto;touch-action:pan-y;position:absolute;z-index:1;top:56%;left:calc(5% - 22px);width:calc(90% + 44px);height:44px;transform:translateY(-50%);opacity:0;margin:0;cursor:ew-resize}
+#reveal-range::-webkit-slider-thumb{width:44px;height:44px;margin-top:-21px}
+#reveal-range::-moz-range-thumb{width:44px;height:44px}
+#reveal-range:focus-visible+.split-handle{outline:2px solid white;outline-offset:4px}
+.split-tag{position:absolute;bottom:78px;padding:4px 8px;background:#201b1bea;border:1px solid #62564a;border-radius:4px;color:#f8e8d5;font-size:.75rem;font-weight:650;text-shadow:none}
+#reveal-left{left:15px}#reveal-right{right:15px}
+@media(max-width:650px){.reveal-toggle{top:15px;right:15px}}

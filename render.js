@@ -168,13 +168,18 @@ export function createRenderer(canvas){
     if(!destroyed)bufferSet[name]=bind({a:new Float32Array(bytes,8,n*6),ix:new Uint32Array(bytes,8+n*24,m)});
   })).then(()=>{if(destroyed)return; if(last)draw(last); canvas.dispatchEvent(new Event('atlasready'));}).catch(e=>{if(!destroyed)canvas.dispatchEvent(new CustomEvent('atlaserror',{detail:{message:e.message}}));});
   const jobs=[];
-  function draw({yaw=0,pitch=0,roll=0,jaw=0,zoom=1,layers={bone:true},opacity=1,center=[.5,.5],scale=1,cut=0,live=false}={}){
+  function draw({yaw=0,pitch=0,roll=0,jaw=0,zoom=1,layers={bone:true},opacity=1,center=[.5,.5],scale=1,cut=0,live=false,split=1}={}){
     if(destroyed||gl.isContextLost())return;
-    last={yaw,pitch,roll,jaw,zoom,layers,opacity,center,scale,cut,live};
+    last={yaw,pitch,roll,jaw,zoom,layers,opacity,center,scale,cut,live,split};
     const dpr=Math.min(devicePixelRatio||1,1.85);
     const w=Math.max(1,Math.round(canvas.clientWidth*dpr)),h=Math.max(1,Math.round(canvas.clientHeight*dpr));
     if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
-    gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(p);
+    gl.viewport(0,0,w,h);gl.disable(gl.SCISSOR_TEST);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(p);
+    if(split<1){
+      // Clear the full surface first so moving the divider never leaves stale pixels.
+      gl.enable(gl.SCISSOR_TEST);
+      gl.scissor(0,0,Math.round(w*clamp(split,0,1)),h);
+    }
     gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);
     const s=.675*zoom*scale*Math.min(1,(w/h)/.75);
     gl.uniform2f(u.Scale,s*h/w,s);
@@ -202,7 +207,7 @@ export function createRenderer(canvas){
       gl.colorMask(false,false,false,false);renderPass();gl.colorMask(true,true,true,true);
       gl.depthMask(false);gl.depthFunc(gl.EQUAL);renderPass();gl.depthMask(true);
     }
-    gl.bindVertexArray(null);
+    gl.bindVertexArray(null);gl.disable(gl.SCISSOR_TEST);
   }
   return {ready,draw,destroy(){destroyed=true;abort.abort();for(const {vao,vbo,ibo} of Object.values(bufferSet)){
     gl.deleteVertexArray(vao);gl.deleteBuffer(vbo);gl.deleteBuffer(ibo);}
